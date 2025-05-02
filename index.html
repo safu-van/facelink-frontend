@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FaceLink</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav>
+      <ul>
+        <li><strong>FaceLink</strong></li>
+      </ul>
+    </nav>
+
+    <main>
+      <h2>Upload Photo</h2>
+      <div class="upload-container">
+        <form id="uploadForm">
+          <label for="image" class="upload-box">
+            <img
+              src="images/upload-logo.jpeg"
+              alt="Upload Icon"
+              class="upload-icon"
+            />
+          </label>
+          <input
+            type="file"
+            id="image"
+            name="image"
+            accept="image/*"
+            style="display: none"
+          />
+
+          <img id="previewImage" class="image-preview" style="display: none" />
+
+          <div class="prompt-container">
+            <input
+              type="text"
+              placeholder="Give a prompt"
+              class="prompt-input"
+              name="prompt"
+              id="prompt"
+            />
+            <button type="submit" class="prompt-button">Search</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="result"></div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-content">
+        <p>© 2025 FaceLink | All Rights Reserved</p>
+      </div>
+    </footer>
+
+    <!-- Modal -->
+    <div id="resultModal" class="modal hidden">
+      <div class="modal-content">
+        <span id="closeModal" class="close">&times;</span>
+        <h3>Result</h3>
+        <img
+          id="modalImage"
+          src=""
+          class="modal-preview"
+          alt="Uploaded Image"
+        />
+        <p id="modalResult"></p>
+      </div>
+    </div>
+
+    <script>
+      const form = document.getElementById("uploadForm");
+      const modal = document.getElementById("resultModal");
+      const modalText = document.getElementById("modalResult");
+      const modalImage = document.getElementById("modalImage");
+      const closeButton = document.getElementById("closeModal");
+
+      const imageInput = document.getElementById("image");
+      const previewImage = document.getElementById("previewImage");
+
+      imageInput.addEventListener("change", function () {
+        const file = this.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            previewImage.src = e.target.result;
+            previewImage.style.display = "block";
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+
+      form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+
+        const image = imageInput.files[0];
+        const prompt = document.getElementById("prompt").value;
+
+        if (!image) {
+          modalText.innerHTML = "<p>Please provide an image.</p>";
+          modalImage.style.display = "none";
+          modal.classList.remove("hidden");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("image", image);
+        formData.append("prompt", prompt);
+
+        try {
+          const response = await fetch("http://127.0.0.1:8000/api/find/", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!response.ok) throw new Error("Server error");
+
+          const data = await response.json();
+
+          if (data.message) {
+            modalText.innerHTML = `
+                <p><strong>Message:</strong> ${data.message}</p>
+              `;
+            modalImage.style.display = "none";
+          }
+
+          if (data.image_url) {
+            modalText.innerHTML = `
+                <p><strong>Found at:</strong> ${data.match_camera}</p>
+                <p><strong>Found on:</strong> ${data.matched_at}</p>
+              `;
+            const fullImageUrl = `http://127.0.0.1:8000${data.match_frame}`;
+            modalImage.src = fullImageUrl;
+            modalImage.style.display = "block";
+          }
+
+          modal.classList.remove("hidden");
+        } catch (err) {
+          modalImage.style.display = "none";
+          modalText.innerHTML = `<p style="color:red;">Error: ${err.message}</p>`;
+          modal.classList.remove("hidden");
+        }
+      });
+
+      closeButton.addEventListener("click", () => {
+        modal.classList.add("hidden");
+      });
+
+      window.addEventListener("click", (e) => {
+        if (e.target === modal) {
+          modal.classList.add("hidden");
+        }
+      });
+    </script>
+  </body>
+</html>
